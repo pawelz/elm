@@ -24,30 +24,24 @@ import java.util.concurrent.Callable;
     name = "ingest-pipeline",
     mixinStandardHelpOptions = true,
     version = "1.0.0",
-    description = "Parses a Maildir, preprocesses emails, and outputs a JSONL file for ML pipelines."
+    description = "Parses good and bad flat directories, preprocesses emails, and outputs a single JSONL file."
 )
 public class IngestPipeline implements Callable<Integer> {
 
-    @Option(names = {"-i", "--input"}, description = "Path to the Maildir input directory", required = true)
-    private File maildir;
+    @Option(names = {"-g", "--good"}, description = "Path to the local directory containing good emails", required = false)
+    private File goodDir;
+
+    @Option(names = {"-b", "--bad"}, description = "Path to the local directory containing bad emails", required = false)
+    private File badDir;
 
     @Option(names = {"-o", "--output"}, description = "Path to the output JSONL file", required = true)
     private File outputFile;
 
-    @Option(names = {"-l", "--label"}, description = "Label to assign to all emails (0 or 1)", required = true)
-    private int label;
-
     @Override
     public Integer call() {
-        // Validate label
-        if (label != 0 && label != 1) {
-            System.err.printf("Error: Invalid label %d. Label must be 0 or 1.%n", label);
-            return 1;
-        }
-
-        // Validate Maildir
-        if (!maildir.exists() || !maildir.isDirectory()) {
-            System.err.printf("Error: Input path '%s' does not exist or is not a directory.%n", maildir.getAbsolutePath());
+        // Validate that at least one input directory is specified
+        if (goodDir == null && badDir == null) {
+            System.err.println("Error: At least one of --good or --bad must be specified.");
             return 1;
         }
 
@@ -60,39 +54,64 @@ public class IngestPipeline implements Callable<Integer> {
             }
         }
 
-        // Scan for email files
-        List<File> emailFiles = scanMaildir(maildir);
-        System.out.printf("Scanning '%s'... Found %d email file(s) to process.%n", maildir.getAbsolutePath(), emailFiles.size());
-
-        if (emailFiles.isEmpty()) {
-            System.out.println("No email files to process. Exiting.");
-            return 0;
-        }
-
-        // Initialize session and object mapper
+        // Initialize sessions and mapper
         Properties props = new Properties();
         Session session = Session.getDefaultInstance(props, null);
         ObjectMapper mapper = new ObjectMapper();
 
-        int successCount = 0;
+        int goodSuccessCount = 0;
+        int badSuccessCount = 0;
         int failureCount = 0;
 
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFile))) {
-            for (File file : emailFiles) {
-                try (FileInputStream fis = new FileInputStream(file)) {
-                    MimeMessage message = new MimeMessage(session, fis);
-                    EmailRecord record = EmailParser.parse(message, label);
+            // Process good directory (Label = 0)
+            if (goodDir != null) {
+                if (!goodDir.exists() || !goodDir.isDirectory()) {
+                    System.err.printf("Error: Good emails directory '%s' does not exist or is not a directory.%n", goodDir.getAbsolutePath());
+                    return 1;
+                }
+                List<File> goodFiles = scanDirectory(goodDir);
+                System.out.printf("Scanning good emails... Found %d file(s) in '%s'.%n", goodFiles.size(), goodDir.getAbsolutePath());
 
-                    // Serialize to JSON and write as a single line
-                    String jsonLine = mapper.writeValueAsString(record);
-                    writer.write(jsonLine);
-                    writer.newLine();
-                    successCount++;
-                } catch (Exception e) {
-                    System.err.printf("Warning: Failed to process email file '%s': %s%n", file.getName(), e.getMessage());
-                    failureCount++;
+                for (File file : goodFiles) {
+                    try (FileInputStream fis = new FileInputStream(file)) {
+                        MimeMessage message = new MimeMessage(session, fis);
+                        EmailRecord record = EmailParser.parse(message, 0); // 0 = Good
+
+                        writer.write(mapper.writeValueAsString(record));
+                        writer.newLine();
+                        goodSuccessCount++;
+                    } catch (Exception e) {
+                        System.err.printf("Warning: Failed to process good email '%s': %s%n", file.getName(), e.getMessage());
+                        failureCount++;
+                    }
                 }
             }
+
+            // Process bad directory (Label = 1)
+            if (badDir != null) {
+                if (!badDir.exists() || !badDir.isDirectory()) {
+                    System.err.printf("Error: Bad emails directory '%s' does not exist or is not a directory.%n", badDir.getAbsolutePath());
+                    return 1;
+                }
+                List<File> badFiles = scanDirectory(badDir);
+                System.out.printf("Scanning bad emails... Found %d file(s) in '%s'.%n", badFiles.size(), badDir.getAbsolutePath());
+
+                for (File file : badFiles) {
+                    try (FileInputStream fis = new FileInputStream(file)) {
+                        MimeMessage message = new MimeMessage(session, fis);
+                        EmailRecord record = EmailParser.parse(message, 1); // 1 = Bad
+
+                        writer.write(mapper.writeValueAsString(record));
+                        writer.newLine();
+                        badSuccessCount++;
+                    } catch (Exception e) {
+                        System.err.printf("Warning: Failed to process bad email '%s': %s%n", file.getName(), e.getMessage());
+                        failureCount++;
+                    }
+                }
+            }
+
             writer.flush();
         } catch (IOException e) {
             System.err.printf("Error writing to output file '%s': %s%n", outputFile.getAbsolutePath(), e.getMessage());
@@ -100,46 +119,24 @@ public class IngestPipeline implements Callable<Integer> {
         }
 
         System.out.println("Ingestion pipeline finished successfully.");
-        System.out.printf("Summary: %d processed, %d failed.%n", successCount, failureCount);
+        System.out.printf("Summary: %d good parsed, %d bad parsed, %d failed.%n", goodSuccessCount, badSuccessCount, failureCount);
         return 0;
     }
 
     /**
-     * Scans Maildir for email files, looking under cur/ and new/ folders with a flat fallback.
+     * Lists all regular, non-hidden files in the given directory.
      */
-    private static List<File> scanMaildir(File maildir) {
-        List<File> emailFiles = new ArrayList<>();
-        File curDir = new File(maildir, "cur");
-        File newDir = new File(maildir, "new");
-
-        // Scan cur/ directory
-        if (curDir.exists() && curDir.isDirectory()) {
-            addFilesFromDir(curDir, emailFiles);
-        }
-
-        // Scan new/ directory
-        if (newDir.exists() && newDir.isDirectory()) {
-            addFilesFromDir(newDir, emailFiles);
-        }
-
-        // Fallback: If no files found under standard Maildir layout, check flat root directory
-        if (emailFiles.isEmpty()) {
-            addFilesFromDir(maildir, emailFiles);
-        }
-
-        return emailFiles;
-    }
-
-    private static void addFilesFromDir(File dir, List<File> list) {
+    private static List<File> scanDirectory(File dir) {
+        List<File> list = new ArrayList<>();
         File[] files = dir.listFiles();
         if (files != null) {
             for (File f : files) {
-                // Ignore subdirectories and hidden/system files starting with "."
                 if (f.isFile() && !f.getName().startsWith(".")) {
                     list.add(f);
                 }
             }
         }
+        return list;
     }
 
     public static void main(String[] args) {
