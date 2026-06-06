@@ -1,0 +1,15 @@
+# Bazel directories
+bazel-*
+
+# Vim swap files
+*.swp
+*.swo
+*~
+.*.swp
+.*.swo
+
+# Compiled Java files
+*.class
+*.jar
+*.war
+*.ear
