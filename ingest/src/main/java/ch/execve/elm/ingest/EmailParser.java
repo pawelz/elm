@@ -50,20 +50,10 @@ public class EmailParser {
         }
 
         if (part.isMimeType("text/plain")) {
-            Object content = part.getContent();
-            if (content instanceof String) {
-                return (String) content;
-            } else if (content instanceof InputStream) {
-                return readInputStream((InputStream) content, part.getContentType());
-            }
+            return getPartText(part);
         } else if (part.isMimeType("text/html")) {
-            Object content = part.getContent();
-            String html;
-            if (content instanceof String) {
-                html = (String) content;
-            } else if (content instanceof InputStream) {
-                html = readInputStream((InputStream) content, part.getContentType());
-            } else {
+            String html = getPartText(part);
+            if (html == null) {
                 html = "";
             }
             return htmlToText(html);
@@ -118,23 +108,102 @@ public class EmailParser {
     }
 
     /**
+     * Safely retrieves the text content of a Part, decoding charset and handling fallback if needed.
+     */
+    private static String getPartText(Part part) throws MessagingException, IOException {
+        try {
+            Object content = part.getContent();
+            if (content instanceof String) {
+                return (String) content;
+            } else if (content instanceof InputStream) {
+                return readInputStream((InputStream) content, part.getContentType());
+            }
+        } catch (Exception e) {
+            // Fall back to manual InputStream decoding in case of UnsupportedEncodingException or other decoding failures
+            try (InputStream is = part.getInputStream()) {
+                return readInputStream(is, part.getContentType());
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Normalizes and resolves standard and non-standard charset names to a supported Charset object.
+     * Defaults to ISO-8859-1 if the charset is unsupported, to ensure robust decoding.
+     */
+    private static java.nio.charset.Charset resolveCharset(String charsetName) {
+        if (charsetName == null || charsetName.trim().isEmpty()) {
+            return StandardCharsets.UTF_8;
+        }
+        String normalized = charsetName.trim().toLowerCase(java.util.Locale.ENGLISH);
+
+        // Map common aliases that standard JVMs or JavaMail may fail to resolve natively
+        if (normalized.equals("cp-850") || normalized.equals("cp850") || normalized.equals("ibm850") || normalized.equals("ibm-850")) {
+            try {
+                if (java.nio.charset.Charset.isSupported("Cp850")) {
+                    return java.nio.charset.Charset.forName("Cp850");
+                }
+            } catch (Exception ignored) {}
+            try {
+                if (java.nio.charset.Charset.isSupported("IBM850")) {
+                    return java.nio.charset.Charset.forName("IBM850");
+                }
+            } catch (Exception ignored) {}
+        }
+        if (normalized.equals("iso-8859-14") || normalized.equals("iso_8859-14")) {
+            try {
+                if (java.nio.charset.Charset.isSupported("ISO8859_14")) {
+                    return java.nio.charset.Charset.forName("ISO8859_14");
+                }
+            } catch (Exception ignored) {}
+            try {
+                if (java.nio.charset.Charset.isSupported("ISO-8859-14")) {
+                    return java.nio.charset.Charset.forName("ISO-8859-14");
+                }
+            } catch (Exception ignored) {}
+        }
+        if (normalized.equals("iso-8859-10") || normalized.equals("iso_8859-10")) {
+            try {
+                if (java.nio.charset.Charset.isSupported("ISO8859_10")) {
+                    return java.nio.charset.Charset.forName("ISO8859_10");
+                }
+            } catch (Exception ignored) {}
+            try {
+                if (java.nio.charset.Charset.isSupported("ISO-8859-10")) {
+                    return java.nio.charset.Charset.forName("ISO-8859-10");
+                }
+            } catch (Exception ignored) {}
+        }
+
+        try {
+            if (java.nio.charset.Charset.isSupported(charsetName)) {
+                return java.nio.charset.Charset.forName(charsetName);
+            }
+        } catch (Exception ignored) {}
+
+        // Fall back to ISO-8859-1 which is standard and decodes any byte stream without throwing exceptions
+        return StandardCharsets.ISO_8859_1;
+    }
+
+    /**
      * Decodes and reads an InputStream using the charset specified in the content type,
-     * falling back to UTF-8.
+     * falling back to UTF-8 or ISO-8859-1 if the charset is unsupported.
      */
     private static String readInputStream(InputStream is, String contentType) throws IOException {
-        String charset = StandardCharsets.UTF_8.name();
+        String charsetName = StandardCharsets.UTF_8.name();
         if (contentType != null) {
             try {
                 ContentType ct = new ContentType(contentType);
                 String paramCharset = ct.getParameter("charset");
                 if (paramCharset != null && !paramCharset.trim().isEmpty()) {
-                    charset = paramCharset;
+                    charsetName = paramCharset;
                 }
             } catch (Exception ignored) {
                 // Ignore parsing errors and use fallback charset
             }
         }
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(is, charset))) {
+        java.nio.charset.Charset resolved = resolveCharset(charsetName);
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(is, resolved))) {
             return reader.lines().collect(Collectors.joining("\n"));
         }
     }
