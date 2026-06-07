@@ -89,17 +89,41 @@ Before deploying the ONNX model to the Pi:
   - Speeds up inference by **2x to 4x** on ARM CPUs.
   - Minimizes memory footprint, keeping execution well within the Pi's standard RAM limits.
 
+## 4. Dependencies
+
+The Python pipeline utilizes standard ML and deployment libraries. These dependencies are automatically managed via a Bazel-wrapped local virtual environment:
+- `sentence-transformers`: High-level library to easily extract dense text representations.
+- `transformers`: Backing library for huggingface tokenizers and models.
+- `scikit-learn`: Standard library for fast tabular machine learning classifiers (Logistic Regression, Random Forest).
+- `joblib`: High-performance persistence library to save and load scikit-learn models.
+- `onnx` & `onnxruntime`: Used to serialize models to an open standard and run high-performance CPU inference.
+- `numpy`: Fast array manipulations and feature vector synthesis.
+
 ---
 
-## 4. Implementation Steps Roadmap
+## 5. Implementation Steps Roadmap & Parameterization
 
-1. **Step 1: Raw Data Loader**
-   Load `training.jsonl`, parse the `subject`, `body`, and `label` fields, and extract/scale `metadata_features`.
-2. **Step 2: Embedding Generation**
-   Extract text embeddings for the entire training dataset using standard Hugging Face/SentenceTransformers libraries.
-3. **Step 3: Classifier Training**
-   Concatenate the text vectors and metadata vectors, and fit the `scikit-learn` classifier. Save the classifier artifact as a `.joblib` file.
-4. **Step 4: ONNX Conversion & Quantization**
-   Convert the Hugging Face transformer model to ONNX, quantize it to INT8, and verify embedding correctness.
-5. **Step 5: Pi-Optimized Inference Runner**
-   Write a standalone `predict.py` using only `onnxruntime` and `numpy` to handle live incoming email streams.
+To avoid hardcoded paths and make the pipeline reusable with future datasets, all tools are fully parameterized using command-line arguments (e.g., via `argparse`).
+
+### 5.1 Pipeline Execution
+
+1. **Step 1: Classifier Training (`train.py`)**
+   - **Arguments**:
+     - `--data-path` (Path to any training JSONL file, e.g., `data/20260606-0/training.jsonl`)
+     - `--model-dir` (Directory to save the trained `.joblib` classifier and metadata definitions)
+   - **Logic**: Loads data, extracts embeddings using SentenceTransformers, concatenates with metadata features, fits the classifier, and saves it.
+
+2. **Step 2: ONNX Conversion & Quantization (`export_onnx.py`)**
+   - **Arguments**:
+     - `--output-dir` (Directory to output the quantized ONNX files)
+   - **Logic**: Exports the text embedder backbone to ONNX and applies post-training dynamic INT8 quantization.
+
+3. **Step 3: Pi-Optimized Inference Runner (`predict.py`)**
+   - **Arguments**:
+     - `--subject` (Email subject text)
+     - `--body` (Email body text)
+     - `--metadata` (JSON string or list of numeric metadata features, e.g. `"[0, 1, 3]"`)
+     - `--onnx-path` (Path to the quantized ONNX model file)
+     - `--classifier-path` (Path to the trained classifier `.joblib` file)
+   - **Logic**: Uses only `onnxruntime` and `numpy` to generate embeddings, synthesize features, and execute the final classification.
+
