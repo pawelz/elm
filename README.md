@@ -12,8 +12,10 @@ Instead of relying on generic public filters or cloud-based classification servi
 *   **Hybrid Feature Representation:** Combines rich semantic text embeddings (via multilingual Sentence Transformers) with standard tabular metadata features.
 *   **Lightweight Deployment:** Leverages post-training INT8 quantization and ONNX Runtime execution, making the model fast enough to run seamlessly on low-power hardware (such as a Raspberry Pi).
 *   **Structured Architecture:**
-    *   **`ingest/`**: A high-performance Java pipeline designed to parse, decode, strip URLs, and cleanly process raw email structures (Maildir format) into structured dataset JSONL records.
-    *   **`training/`**: A Python pipeline to extract embeddings, train a custom classifier, export the pipeline to ONNX, and run accelerated local inference.
+    *   **`java/`**: Unified monorepo Java packages containing:
+        *   `ch/execve/elm/ingest`: A high-performance Java pipeline designed to parse, decode, strip URLs, and cleanly process raw email structures (Maildir format) into structured dataset JSONL records.
+    *   **`training/`**: A Python pipeline to extract embeddings, train a custom classifier, and export the pipeline to ONNX.
+    *   **`serving/`**: Standardized and optimized production inference deployment configuration.
 
 ---
 
