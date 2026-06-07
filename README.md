@@ -21,13 +21,13 @@ Instead of relying on generic public filters or cloud-based classification servi
 
 For detailed design specifications, implementation details, and step-by-step instructions on how to set up the ingestion pipeline, train your classifier, and run local inference, please refer to the comprehensive guides in the `docs/` directory:
 
-*   [Training Pipeline Documentation](file:///Users/pawelz/git/elm/docs/training.md) — Step-by-step guide to data preparation, training, exporting, and inference.
-*   [Technical Implementation Plan](file:///Users/pawelz/git/elm/docs/training-pipeline-implementation-plan.md) — Deep-dive into architecture choices, quantization strategies, and schema definitions.
+*   [Training Pipeline Documentation](docs/training.md) — Step-by-step guide to data preparation, training, exporting, and inference.
+*   [Technical Implementation Plan](docs/training-pipeline-implementation-plan.md) — Deep-dive into architecture choices, quantization strategies, and schema definitions.
 
 ---
 
 ## License
 
-This project is open-source software released under the [Apache License 2.0](file:///Users/pawelz/git/elm/LICENSE.txt).
+This project is open-source software released under the [Apache License 2.0](LICENSE.txt).
 
 Copyright &copy; 2026 Paweł Zuzelski
