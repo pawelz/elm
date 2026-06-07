@@ -12,29 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@rules_java//java:defs.bzl", "java_binary", "java_library")
+load("@rules_java//java:defs.bzl", "java_library")
 
 java_library(
-    name = "ingest_lib",
+    name = "core_lib",
     srcs = glob(["*.java"]),
     javacopts = ["--release", "21"],
     deps = [
-        "//java/ch/execve/elm/core:core_lib",
         "@maven//:jakarta_mail_jakarta_mail_api",
         "@maven//:org_eclipse_angus_angus_mail",
         "@maven//:org_jsoup_jsoup",
-        "@maven//:com_fasterxml_jackson_core_jackson_databind",
-        "@maven//:com_fasterxml_jackson_core_jackson_core",
-        "@maven//:com_fasterxml_jackson_core_jackson_annotations",
-        "@maven//:info_picocli_picocli",
         "@maven//:com_google_guava_guava",
     ],
-    visibility = ["//visibility:public"],
-)
-
-java_binary(
-    name = "ingest_pipeline",
-    main_class = "ch.execve.elm.ingest.IngestPipeline",
-    runtime_deps = [":ingest_lib"],
     visibility = ["//visibility:public"],
 )

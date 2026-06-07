@@ -16,6 +16,8 @@
 
 package ch.execve.elm.ingest;
 
+import ch.execve.elm.core.EmailParser;
+import ch.execve.elm.core.EmailRecord;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.mail.Session;
 import jakarta.mail.internet.MimeMessage;

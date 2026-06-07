@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package ch.execve.elm.ingest;
+package ch.execve.elm.core;
 
 import jakarta.mail.BodyPart;
 import jakarta.mail.MessagingException;

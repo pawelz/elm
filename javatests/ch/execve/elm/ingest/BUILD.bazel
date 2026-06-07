@@ -21,6 +21,7 @@ java_test(
     test_class = "ch.execve.elm.ingest.EmailParserTest",
     deps = [
         "//java/ch/execve/elm/ingest:ingest_lib",
+        "//java/ch/execve/elm/core:core_lib",
         "@maven//:junit_junit",
         "@maven//:jakarta_mail_jakarta_mail_api",
         "@maven//:org_eclipse_angus_angus_mail",
