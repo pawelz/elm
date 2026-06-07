@@ -10,11 +10,14 @@ We will introduce a Python-based pipeline inside the `training/` directory. Due 
 
 ### Components & File Structure
 
-#### [NEW] [BUILD.bazel](file:///Users/pawelz/git/elm/training/BUILD.bazel)
+#### [NEW] [BUILD.bazel (training)](file:///Users/pawelz/git/elm/training/BUILD.bazel)
 Defines the Bazel targets:
 * `//training:train`: Runs the model training phase.
 * `//training:export`: Converts the trained sentence-transformer to ONNX and quantizes it to INT8.
-* `//training:predict`: Runs a standalone inference prediction on a sample email.
+
+#### [NEW] [BUILD.bazel (serving)](file:///Users/pawelz/git/elm/serving/BUILD.bazel)
+Defines the Bazel targets:
+* `//serving:predict`: Runs a standalone inference prediction on a sample email.
 
 #### [NEW] [requirements.txt](file:///Users/pawelz/git/elm/training/requirements.txt)
 Lists all python dependencies needed for the project:
@@ -40,7 +43,7 @@ Python script to:
 2. Apply INT8 Dynamic Quantization to the model to reduce its footprint to ~34MB and optimize it for the Raspberry Pi ARM CPU.
 3. Save the quantized model output to a parameterized `--output-dir` flag.
 
-#### [NEW] [predict.py](file:///Users/pawelz/git/elm/training/predict.py)
+#### [NEW] [predict.py](file:///Users/pawelz/git/elm/serving/predict.py)
 A standalone, ultra-lightweight inference script that does not require PyTorch or Hugging Face. It:
 1. Uses `onnxruntime` to generate text embeddings from a parameterized `--onnx-path` file.
 2. Formats incoming input text and `metadata_features` (e.g., using `--subject`, `--body`, and `--metadata` flags).
@@ -60,7 +63,7 @@ A helper shell script used by Bazel to:
 - We will verify that each Bazel command executes successfully with parameterized flags:
   - `bazel run //training:train -- --data-path data/20260606-0/training.jsonl --model-dir training` to train the PoC v1 model.
   - `bazel run //training:export -- --output-dir training` to generate the optimized ONNX model.
-  - `bazel run //training:predict -- --subject "Test" --body "Hello there!" --metadata "[0, 0, 0]" --onnx-path training/model_quantized.onnx --classifier-path training/spam_classifier.joblib` to run verification.
+  - `bazel run //serving:predict -- --subject "Test" --body "Hello there!" --metadata "[0, 0, 0]" --onnx-path training/model_quantized.onnx --classifier-path training/spam_classifier.joblib` to run verification.
 
 ### Manual Verification
 - Confirm that the final model size of `model_quantized.onnx` is ~34MB and that the runtime takes less than 100ms per prediction on CPU.

@@ -17,21 +17,11 @@ load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 package(default_visibility = ["//visibility:public"])
 
 sh_binary(
-    name = "train",
+    name = "predict",
     srcs = ["run_python.sh"],
-    args = ["training/train.py"],
+    args = ["serving/predict.py"],
     data = [
-        "train.py",
-        "requirements.txt",
-    ],
-)
-
-sh_binary(
-    name = "export",
-    srcs = ["run_python.sh"],
-    args = ["training/export_onnx.py"],
-    data = [
-        "export_onnx.py",
+        "predict.py",
         "requirements.txt",
     ],
 )

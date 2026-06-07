@@ -110,7 +110,7 @@ To avoid hardcoded paths and make the pipeline reusable with future datasets, al
 To compile the Python execution wrappers and link dependencies under the Bazel build system, compile the public targets in the `training` package:
 
 ```bash
-bazel build //training:train //training:export //training:predict
+bazel build //training:train //training:export //serving:predict
 ```
 
 Once compiled, Bazel outputs executable binary scripts inside `bazel-bin/training/`. You can execute these binaries directly within the workspace.
@@ -150,7 +150,7 @@ Run the export binary to trace the PyTorch transformer, mean pool its graph, con
 Run prediction on any arbitrary email by feeding in parameters directly. This requires **no** PyTorch or HuggingFace libraries, meaning it executes almost instantly and with low memory:
 
 ```bash
-./bazel-bin/training/predict \
+./bazel-bin/serving/predict \
   --subject "Get cheap replica watches today!" \
   --body "Hey, click here to buy replica watches at a fraction of the cost. Sale ends soon." \
   --onnx-path model/model_quantized.onnx \

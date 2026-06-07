@@ -154,7 +154,7 @@ def main():
     # 7. Process and format metadata features
     metadata_features = parse_metadata_input(args.metadata, metadata_dim)
     
-    # 8. Synthesize final joint feature vector
+    # 8. Synthesize joint feature vector
     if metadata_dim > 0:
         final_features = np.hstack((text_embedding, metadata_features))
     else:

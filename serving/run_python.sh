@@ -49,15 +49,13 @@ else
 fi
 
 # Fast dependency verification: we run pip install. It's very fast if all packages are already satisfied.
-pip install -r "$WORKSPACE_ROOT/training/requirements.txt" --quiet
+pip install -r "$WORKSPACE_ROOT/serving/requirements.txt" --quiet
 
 # Determine the python script to run based on the executable name (basename of $0)
 BIN_NAME=$(basename "$0")
 
-if [ "$BIN_NAME" = "train" ]; then
-  SCRIPT_REL_PATH="training/train.py"
-elif [ "$BIN_NAME" = "export" ]; then
-  SCRIPT_REL_PATH="training/export_onnx.py"
+if [ "$BIN_NAME" = "predict" ]; then
+  SCRIPT_REL_PATH="serving/predict.py"
 else
   # Fallback if run directly as run_python.sh
   SCRIPT_REL_PATH="$1"
