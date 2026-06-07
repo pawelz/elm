@@ -127,4 +127,27 @@ public class EmailParserTest {
         EmailRecord record = EmailParser.parse(msg, 0);
         assertEquals("Hello, MS-DOS! (cp-850)", record.body());
     }
+
+    @Test
+    public void testUrlStripping() throws Exception {
+        MimeMessage msg = createMessage();
+        msg.setSubject("URL Test");
+        msg.setText("Check out https://www.google.com/search?q=test and also http://example.co.uk:8080/path/to/resource. Nice!");
+        msg.saveChanges();
+
+        EmailRecord record = EmailParser.parse(msg, 0);
+        assertEquals("Check out google.com and also example.co.uk. Nice!", record.body());
+    }
+
+    @Test
+    public void testUrlStrippingWithoutSchemeKeepBare() throws Exception {
+        MimeMessage msg = createMessage();
+        msg.setSubject("Naked Domain Test");
+        msg.setText("No scheme here google.com but here is https://github.com/google/guava.");
+        msg.saveChanges();
+
+        EmailRecord record = EmailParser.parse(msg, 0);
+        assertEquals("No scheme here google.com but here is github.com.", record.body());
+    }
 }
+

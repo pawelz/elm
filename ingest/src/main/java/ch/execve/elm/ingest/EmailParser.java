@@ -8,6 +8,8 @@ import jakarta.mail.internet.ContentType;
 import jakarta.mail.internet.MimeMessage;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -34,7 +36,7 @@ public class EmailParser {
         if (body == null) {
             body = "";
         } else {
-            body = body.trim();
+            body = stripUrlsToDomain(body.trim());
         }
 
         return new EmailRecord(subject, body, com.google.common.collect.ImmutableList.of(), label);
@@ -226,5 +228,70 @@ public class EmailParser {
                    .replaceAll("\n +", "\n")
                    .replaceAll("\n+", "\n\n")
                    .trim();
+    }
+
+    /**
+     * Finds HTTP/HTTPS URLs in the text and strips them to their bare domain.
+     */
+    public static String stripUrlsToDomain(String text) {
+        if (text == null) {
+            return "";
+        }
+        Pattern pattern = Pattern.compile("https?://[^\\s<>\"'()]+", Pattern.CASE_INSENSITIVE);
+        Matcher matcher = pattern.matcher(text);
+        StringBuilder sb = new StringBuilder();
+        int lastEnd = 0;
+        while (matcher.find()) {
+            sb.append(text, lastEnd, matcher.start());
+            String urlStr = matcher.group();
+
+            // Trim trailing punctuation that are likely part of the surrounding sentence
+            String trailingPunctuation = "";
+            int trimLen = urlStr.length();
+            while (trimLen > 0) {
+                char lastChar = urlStr.charAt(trimLen - 1);
+                if (lastChar == '.' || lastChar == ',' || lastChar == '!' || lastChar == '?' || lastChar == ';' || lastChar == ':' || lastChar == '*' || lastChar == '-') {
+                    trimLen--;
+                } else {
+                    break;
+                }
+            }
+            if (trimLen < urlStr.length()) {
+                trailingPunctuation = urlStr.substring(trimLen);
+                urlStr = urlStr.substring(0, trimLen);
+            }
+
+            String domain = extractDomain(urlStr);
+            sb.append(domain).append(trailingPunctuation);
+            lastEnd = matcher.end();
+        }
+        sb.append(text, lastEnd, text.length());
+        return sb.toString();
+    }
+
+    /**
+     * Extracts the host from a URL and strips "www." if present.
+     */
+    private static String extractDomain(String urlStr) {
+        try {
+            java.net.URI uri = new java.net.URI(urlStr);
+            String host = uri.getHost();
+            if (host != null) {
+                return host.startsWith("www.") ? host.substring(4) : host;
+            }
+        } catch (Exception ignored) {
+            // Fallback to regex host extraction if URI parsing fails
+        }
+        Pattern hostPattern = Pattern.compile("^https?://([^/?:#]+)", Pattern.CASE_INSENSITIVE);
+        Matcher m = hostPattern.matcher(urlStr);
+        if (m.find()) {
+            String host = m.group(1);
+            int colonIdx = host.indexOf(':');
+            if (colonIdx != -1) {
+                host = host.substring(0, colonIdx);
+            }
+            return host.startsWith("www.") ? host.substring(4) : host;
+        }
+        return urlStr;
     }
 }
