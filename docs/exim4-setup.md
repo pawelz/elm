@@ -4,11 +4,11 @@ This guide provides step-by-step instructions to deploy the `ElmServer` spam cla
 
 ---
 
-## 1. Install Java 21 on Raspbian
-`ElmServer` requires Java 21. Install the headless runtime package via APT:
+## 1. Install Java 25 on Raspbian
+`ElmServer` requires Java 25. Install the headless runtime package via APT:
 ```bash
 sudo apt update
-sudo apt install openjdk-21-jre-headless
+sudo apt install openjdk-25-jre-headless
 ```
 
 ---

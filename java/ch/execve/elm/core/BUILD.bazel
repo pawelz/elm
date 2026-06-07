@@ -17,7 +17,7 @@ load("@rules_java//java:defs.bzl", "java_library")
 java_library(
     name = "core_lib",
     srcs = glob(["*.java"]),
-    javacopts = ["--release", "21"],
+    javacopts = ["--release", "25"],
     deps = [
         "@maven//:jakarta_mail_jakarta_mail_api",
         "@maven//:org_eclipse_angus_angus_mail",

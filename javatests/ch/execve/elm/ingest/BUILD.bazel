@@ -17,7 +17,7 @@ load("@rules_java//java:defs.bzl", "java_test")
 java_test(
     name = "email_parser_test",
     srcs = glob(["*.java"]),
-    javacopts = ["--release", "21"],
+    javacopts = ["--release", "25"],
     test_class = "ch.execve.elm.ingest.EmailParserTest",
     deps = [
         "//java/ch/execve/elm/ingest:ingest_lib",
