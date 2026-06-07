@@ -1,0 +1,33 @@
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+
+package(default_visibility = ["//visibility:public"])
+
+sh_binary(
+    name = "train",
+    srcs = ["run_python.sh"],
+    args = ["training/train.py"],
+    data = [
+        "train.py",
+        "requirements.txt",
+    ],
+)
+
+sh_binary(
+    name = "export",
+    srcs = ["run_python.sh"],
+    args = ["training/export_onnx.py"],
+    data = [
+        "export_onnx.py",
+        "requirements.txt",
+    ],
+)
+
+sh_binary(
+    name = "predict",
+    srcs = ["run_python.sh"],
+    args = ["training/predict.py"],
+    data = [
+        "predict.py",
+        "requirements.txt",
+    ],
+)

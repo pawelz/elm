@@ -16,3 +16,11 @@ bazel-*
 
 # data
 data/*
+
+# model output directory
+model/
+
+# python virtual environment and caches
+.venv/
+__pycache__/
+*.pyc

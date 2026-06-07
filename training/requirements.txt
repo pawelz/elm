@@ -1,0 +1,9 @@
+sentence-transformers>=2.2.2
+transformers>=4.30.0
+scikit-learn>=1.2.0
+joblib>=1.2.0
+onnx>=1.14.0
+onnxruntime>=1.14.0
+numpy>=1.22.0
+onnxscript
+

@@ -105,25 +105,63 @@ The Python pipeline utilizes standard ML and deployment libraries. These depende
 
 To avoid hardcoded paths and make the pipeline reusable with future datasets, all tools are fully parameterized using command-line arguments (e.g., via `argparse`).
 
-### 5.1 Pipeline Execution
+### 5.1 Compilation & Build
 
-1. **Step 1: Classifier Training (`train.py`)**
-   - **Arguments**:
-     - `--data-path` (Path to any training JSONL file, e.g., `data/20260606-0/training.jsonl`)
-     - `--model-dir` (Directory to save the trained `.joblib` classifier and metadata definitions)
-   - **Logic**: Loads data, extracts embeddings using SentenceTransformers, concatenates with metadata features, fits the classifier, and saves it.
+To compile the Python execution wrappers and link dependencies under the Bazel build system, compile the public targets in the `training` package:
 
-2. **Step 2: ONNX Conversion & Quantization (`export_onnx.py`)**
-   - **Arguments**:
-     - `--output-dir` (Directory to output the quantized ONNX files)
-   - **Logic**: Exports the text embedder backbone to ONNX and applies post-training dynamic INT8 quantization.
+```bash
+bazel build //training:train //training:export //training:predict
+```
 
-3. **Step 3: Pi-Optimized Inference Runner (`predict.py`)**
-   - **Arguments**:
-     - `--subject` (Email subject text)
-     - `--body` (Email body text)
-     - `--metadata` (JSON string or list of numeric metadata features, e.g. `"[0, 1, 3]"`)
-     - `--onnx-path` (Path to the quantized ONNX model file)
-     - `--classifier-path` (Path to the trained classifier `.joblib` file)
-   - **Logic**: Uses only `onnxruntime` and `numpy` to generate embeddings, synthesize features, and execute the final classification.
+Once compiled, Bazel outputs executable binary scripts inside `bazel-bin/training/`. You can execute these binaries directly within the workspace.
+
+---
+
+## 6. Execution Guide
+
+### 6.1 Step 1: Classifier Training
+
+Run the compiled training binary directly. It will dynamically manage and prepare a local `.venv` and install the package dependencies from `requirements.txt`:
+
+```bash
+./bazel-bin/training/train \
+  --data-path training.jsonl \
+  --model-dir model
+```
+
+* **Inputs**:
+  - `--data-path`: Absolute or relative path to the `training.jsonl` dataset.
+  - `--model-dir`: Directory where `spam_classifier.joblib` and its configurations will be written (recommended: `model`).
+
+### 6.2 Step 2: ONNX Model Export & Quantization
+
+Run the export binary to trace the PyTorch transformer, mean pool its graph, convert it to ONNX, and dynamically quantize the output weight tensors to INT8 (shrunk to ~119MB, highly optimized for edge CPUs):
+
+```bash
+./bazel-bin/training/export \
+  --output-dir model
+```
+
+* **Inputs**:
+  - `--output-dir`: Directory where `model_quantized.onnx` and its corresponding tokenizer configs will be written (recommended: `model`).
+
+### 6.3 Step 3: Lightweight CPU Inference
+
+Run prediction on any arbitrary email by feeding in parameters directly. This requires **no** PyTorch or HuggingFace libraries, meaning it executes almost instantly and with low memory:
+
+```bash
+./bazel-bin/training/predict \
+  --subject "Get cheap replica watches today!" \
+  --body "Hey, click here to buy replica watches at a fraction of the cost. Sale ends soon." \
+  --onnx-path model/model_quantized.onnx \
+  --classifier-path model/spam_classifier.joblib
+```
+
+* **Inputs**:
+  - `--subject`: Subject line of the email.
+  - `--body`: Body content of the email.
+  - `--metadata`: (Optional) JSON-formatted array of numeric features (e.g. `"[1, 0, 1]"`), matching the dimension of features used during training.
+  - `--onnx-path`: Path to `model_quantized.onnx`.
+  - `--classifier-path`: Path to the trained `.joblib` classifier.
+
 
