@@ -116,6 +116,21 @@ def main():
     print(f"Saving tokenizer files to {args.output_dir}...")
     tokenizer.save_pretrained(args.output_dir)
     
+    # Patch tokenizer_config.json to replace 'TokenizersBackend' with 'PreTrainedTokenizerFast' for cross-platform runtime compatibility
+    tokenizer_config_path = os.path.join(args.output_dir, "tokenizer_config.json")
+    if os.path.exists(tokenizer_config_path):
+        import json
+        try:
+            with open(tokenizer_config_path, "r") as f:
+                config_data = json.load(f)
+            if config_data.get("tokenizer_class") == "TokenizersBackend":
+                print("Overriding 'TokenizersBackend' in tokenizer_config.json to 'PreTrainedTokenizerFast' for cross-platform compatibility...")
+                config_data["tokenizer_class"] = "PreTrainedTokenizerFast"
+                with open(tokenizer_config_path, "w") as f:
+                    json.dump(config_data, f, indent=2)
+        except Exception as e:
+            print(f"Warning: Failed to patch tokenizer_config.json: {e}", file=sys.stderr)
+    
     print("Verifying exported ONNX model...")
     try:
         onnx_model = onnx.load(onnx_path)

@@ -163,6 +163,12 @@ def main():
     # 3. Load ML models and tokenizer into memory once at startup
     print(f"Loading joblib classifier from {args.classifier_path}...", flush=True)
     classifier = joblib.load(args.classifier_path)
+    
+    # Safe fallback patching for scikit-learn version mismatches (e.g. 1.9.x trained model loaded in 1.6.x)
+    if not hasattr(classifier, "multi_class"):
+        print("Patching missing 'multi_class' attribute on classifier for compatibility...", flush=True)
+        classifier.multi_class = "auto"
+        
     total_features = classifier.n_features_in_
     
     embedding_dim, metadata_dim = load_config(args.classifier_path, total_features)
