@@ -11,20 +11,25 @@ Instead of relying on generic public filters or cloud-based classification servi
 *   **Privacy-First & Local:** Your email data never leaves your machine. Training, quantization, and inference run completely offline.
 *   **Hybrid Feature Representation:** Combines rich semantic text embeddings (via multilingual Sentence Transformers) with standard tabular metadata features.
 *   **Lightweight Deployment:** Leverages post-training INT8 quantization and ONNX Runtime execution, making the model fast enough to run seamlessly on low-power hardware (such as a Raspberry Pi).
-*   **Structured Architecture:**
-    *   **`java/`**: Unified monorepo Java packages containing:
-        *   `ch/execve/elm/ingest`: A high-performance Java pipeline designed to parse, decode, strip URLs, and cleanly process raw email structures (Maildir format) into structured dataset JSONL records.
-    *   **`training/`**: A Python pipeline to extract embeddings, train a custom classifier, and export the pipeline to ONNX.
-    *   **`serving/`**: Standardized and optimized production inference deployment configuration.
+*   **Pure Python & C Stack:** Zero JVM or external service dependencies. High performance combined with complete architectural simplicity.
+
+---
+
+## Structured Architecture
+
+*   **`core/`**: Shared, unified Python library containing standard email parser and HTML stripping logic. Used for both training ingestion and production serving to prevent any feature mismatch.
+*   **`client/`**: Lightweight native C client designed to read an email stream from `stdin`, communicate with the daemon via socket, prepend classification headers to `stdout`, and stream back the unaltered email body.
+*   **`serving/`**: High-performance UNIX domain socket server daemon written in pure Python using concurrent threading.
+*   **`training/`**: A Python pipeline to ingest raw Maildirs, extract embeddings, train a custom classifier, and export the sentence transformer model to quantized ONNX.
+*   **`pkg/`**: Bazel packaging rules that bundle the client, daemon, and systemd configurations into a lightweight, hermetic `.deb` package.
 
 ---
 
 ## Documentation & Usage
 
-For detailed design specifications, implementation details, and step-by-step instructions on how to set up the ingestion pipeline, train your classifier, and run local inference, please refer to the comprehensive guides in the `docs/` directory:
+For a concise, step-by-step walkthrough of how to ingest your data, train the classifier, build the package, and deploy the entire system, please refer to the comprehensive reference guide:
 
-*   [Training Pipeline Documentation](docs/training.md) — Step-by-step guide to data preparation, training, exporting, and inference.
-*   [Technical Implementation Plan](docs/training-pipeline-implementation-plan.md) — Deep-dive into architecture choices, quantization strategies, and schema definitions.
+*   **[Quick Reference Guide](docs/quick-reference.md)** — Core step-by-step commands to build, train, and deploy.
 
 ---
 
