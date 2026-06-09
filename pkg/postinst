@@ -1,0 +1,26 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    configure)
+        # 1. Reload systemd daemon to recognize the new service
+        if [ -d /run/systemd/system ]; then
+            systemctl daemon-reload || true
+            systemctl enable elm-server || true
+            systemctl restart elm-server || true
+        fi
+
+        # 2. Secure socket permissions: add Debian-exim to mail group so it can write to /run/elm/elm.sock
+        if getent passwd Debian-exim >/dev/null && getent group mail >/dev/null; then
+            usermod -aG mail Debian-exim || true
+        fi
+        ;;
+    abort-upgrade|abort-remove|abort-deconfigure)
+        ;;
+    *)
+        echo "postinst called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+exit 0

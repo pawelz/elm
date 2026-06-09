@@ -1,0 +1,18 @@
+[Unit]
+Description=Elm Spam Classification Server
+After=network.target
+
+[Service]
+Type=simple
+User=mail
+Group=mail
+ExecStart=/usr/bin/java -jar /usr/share/elm/elm-server.jar --socket /run/elm/elm.sock
+Restart=always
+RestartSec=5
+
+# Automates directory creation and permission management on socket directories
+RuntimeDirectory=elm
+RuntimeDirectoryMode=0775
+
+[Install]
+WantedBy=multi-user.target

@@ -2,96 +2,48 @@
 
 This guide provides step-by-step instructions to deploy the `ElmServer` spam classifier as a systemd service, configure the C client, and wire it up inside **Exim4** and **Maildrop** on a Raspbian/Debian system.
 
+We provide a Bazel target to build a standard Debian package (`.deb`) which automates the setup, installs dependencies (like Java 25 headless), registers the systemd service, installs the compiled native client, and configures group memberships automatically.
+
 ---
 
-## 1. Install Java 25 on Raspbian
-`ElmServer` requires Java 25. Install the headless runtime package via APT:
+## 1. Build the Debian Package
+
+To ensure the C client binary is compiled for your Raspberry Pi's CPU architecture, build the package directly on your Raspbian system:
+
+```bash
+# Clone the repository and run the build
+bazel build //pkg:elm_deb
+```
+
+> [!TIP]
+> If you build on a macOS build machine, the resulting `.deb` package will compile successfully and package the Java service and systemd configurations perfectly. However, the C client contained within will be a Mac binary. Build on Raspbian to ensure native ARM compilation.
+
+---
+
+## 2. Install the Package
+
+Install the generated `.deb` package using `apt` so that dependencies (such as `openjdk-25-jre-headless`) are automatically resolved and installed:
+
 ```bash
 sudo apt update
-sudo apt install openjdk-25-jre-headless
+sudo apt install ./bazel-bin/pkg/elm-server_1.0.0_arm64.deb
 ```
+
+*(This command installs the server JAR, registers and starts the systemd service, installs the native C client, and adds the `Debian-exim` user to the `mail` group automatically).*
 
 ---
 
-## 2. Package and Install the ElmServer Daemon
-On your build machine, package the Java application into a single, self-contained executable deployable JAR:
-```bash
-bazel build //java/ch/execve/elm/serving:serving_server_deploy.jar
-```
+## 3. Verify the Installation
 
-Copy the generated JAR to `/usr/local/share/elm/` on your Raspbian mail server:
-```bash
-sudo mkdir -p /usr/local/share/elm
-sudo cp bazel-bin/java/ch/execve/elm/serving/serving_server_deploy.jar /usr/local/share/elm/elm-server.jar
-```
+Ensure the server is running and active:
 
----
-
-## 3. Configure the systemd Service
-Create the service unit file to manage the daemon process:
-```bash
-sudo nano /etc/systemd/system/elm-server.service
-```
-
-Paste the following configuration:
-```ini
-[Unit]
-Description=Elm Spam Classification Server
-After=network.target
-
-[Service]
-Type=simple
-User=mail
-Group=mail
-ExecStart=/usr/bin/java -jar /usr/local/share/elm/elm-server.jar --socket /run/elm/elm.sock
-Restart=always
-RestartSec=5
-
-# Automates directory creation and permission management on socket directories
-RuntimeDirectory=elm
-RuntimeDirectoryMode=0775
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Reload and enable the service to start automatically on boot:
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now elm-server
-```
-
-Check the status of your daemon:
 ```bash
 sudo systemctl status elm-server
 ```
 
----
-
-## 4. Secure Socket Permissions
-On Debian-based systems like Raspbian, Exim4 typically runs as the `Debian-exim` system user. To ensure that Exim's pipeline can write to our UNIX domain socket owned by the `mail` group, add the `Debian-exim` user to the `mail` group:
-
-```bash
-sudo usermod -aG mail Debian-exim
-```
-*(You may need to restart the `exim4` service for this group membership change to take effect).*
-
----
-
-## 5. Compile and Install the C Client
-On the Raspbian mail server, compile the native client and move it to a globally accessible path:
-
-```bash
-# Build the client
-bazel build //client:client
-
-# Install to /usr/local/bin
-sudo cp bazel-bin/client/client /usr/local/bin/elm-client
-```
-
 Verify that the client can connect and talk to the daemon in filter mode:
 ```bash
-echo "Subject: replica watches" | /usr/local/bin/elm-client --socket /run/elm/elm.sock --filter
+echo "Subject: replica watches" | /usr/bin/elm-client --socket /run/elm/elm.sock --filter
 ```
 You should see output similar to:
 ```rfc822
@@ -103,7 +55,7 @@ Subject: replica watches
 
 ---
 
-## 6. Configure Exim4 (via transport_filter)
+## 4. Configure Exim4 (via transport_filter)
 Debian and Raspbian organize Exim4 configuration in two ways: **split configuration** (multiple files under `/etc/exim4/conf.d/`) or **unsplit configuration** (one template `/etc/exim4/exim4.conf.template`).
 
 To find out which configuration style you use, run:
@@ -121,7 +73,7 @@ procmail_pipe:
   driver = pipe
   command = /usr/bin/maildrop -d $local_part
   # Add the client filter line here:
-  transport_filter = /usr/local/bin/elm-client --socket /run/elm/elm.sock --filter --threshold 0.50
+  transport_filter = /usr/bin/elm-client --socket /run/elm/elm.sock --filter --threshold 0.50
   return_path_add
   delivery_date_add
   envelope_to_add
@@ -135,7 +87,7 @@ procmail_pipe:
 ### Path B: Unsplit Configuration
 If you use the single-template setup, open the file `/etc/exim4/exim4.conf.template` and search for `procmail_pipe:` or `maildrop_pipe:`. Add the `transport_filter` line there:
 ```exim
-transport_filter = /usr/local/bin/elm-client --socket /run/elm/elm.sock --filter --threshold 0.50
+transport_filter = /usr/bin/elm-client --socket /run/elm/elm.sock --filter --threshold 0.50
 ```
 
 ### Apply Changes to Exim4
