@@ -56,11 +56,14 @@ BIN_NAME=$(basename "$0")
 
 if [ "$BIN_NAME" = "predict" ]; then
   SCRIPT_REL_PATH="serving/predict.py"
+elif [ "$BIN_NAME" = "server" ]; then
+  SCRIPT_REL_PATH="serving/server.py"
 else
   # Fallback if run directly as run_python.sh
   SCRIPT_REL_PATH="$1"
   shift
 fi
 
+export PYTHONPATH="$WORKSPACE_ROOT:$PYTHONPATH"
 cd "$WORKSPACE_ROOT"
 python3 "$SCRIPT_REL_PATH" "$@"

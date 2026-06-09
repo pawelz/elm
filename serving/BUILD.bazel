@@ -16,6 +16,13 @@ load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 
 package(default_visibility = ["//visibility:public"])
 
+exports_files([
+    "server.py",
+    "predict.py",
+    "requirements.txt",
+])
+
+
 sh_binary(
     name = "predict",
     srcs = ["run_python.sh"],
@@ -25,3 +32,14 @@ sh_binary(
         "requirements.txt",
     ],
 )
+
+sh_binary(
+    name = "server",
+    srcs = ["run_python.sh"],
+    args = ["serving/server.py"],
+    data = [
+        "server.py",
+        "requirements.txt",
+    ],
+)
+

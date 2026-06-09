@@ -3,3 +3,4 @@ joblib
 onnxruntime
 transformers
 scikit-learn
+beautifulsoup4

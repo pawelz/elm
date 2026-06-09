@@ -3,14 +3,29 @@ set -e
 
 case "$1" in
     configure)
-        # 1. Reload systemd daemon to recognize the new service
+        # 1. Initialize Python virtual environment and install dependencies
+        echo "Setting up Python virtual environment at /usr/share/elm/.venv..."
+        python3 -m venv /usr/share/elm/.venv
+        /usr/share/elm/.venv/bin/pip install --upgrade pip --quiet
+        if [ -f /usr/share/elm/requirements.txt ]; then
+            echo "Installing serving requirements..."
+            /usr/share/elm/.venv/bin/pip install -r /usr/share/elm/requirements.txt --quiet
+        fi
+
+        # 2. Create directory for separately supplied models
+        mkdir -p /usr/share/elm/model
+
+        # 3. Set ownership of the directory to mail:mail
+        chown -R mail:mail /usr/share/elm
+
+        # 4. Reload systemd daemon to recognize the new service
         if [ -d /run/systemd/system ]; then
             systemctl daemon-reload || true
             systemctl enable elm-server || true
             systemctl restart elm-server || true
         fi
 
-        # 2. Secure socket permissions: add Debian-exim to mail group so it can write to /run/elm/elm.sock
+        # 5. Secure socket permissions: add Debian-exim to mail group so it can write to /run/elm/elm.sock
         if getent passwd Debian-exim >/dev/null && getent group mail >/dev/null; then
             usermod -aG mail Debian-exim || true
         fi

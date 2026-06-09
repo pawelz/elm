@@ -16,13 +16,6 @@ load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load("@rules_pkg//pkg:deb.bzl", "pkg_deb")
 
 genrule(
-    name = "copy_server_jar",
-    srcs = ["//java/ch/execve/elm/serving:serving_server_deploy.jar"],
-    outs = ["elm-server.jar"],
-    cmd = "cp $< $@",
-)
-
-genrule(
     name = "copy_client_binary",
     srcs = ["//client:client"],
     outs = ["elm-client"],
@@ -30,9 +23,21 @@ genrule(
 )
 
 pkg_tar(
-    name = "server_jar",
-    srcs = [":copy_server_jar"],
+    name = "server_files",
+    srcs = [
+        "//serving:server.py",
+        "//serving:requirements.txt",
+    ],
     package_dir = "/usr/share/elm",
+)
+
+pkg_tar(
+    name = "core_files",
+    srcs = [
+        "//core:__init__.py",
+        "//core:email_parser.py",
+    ],
+    package_dir = "/usr/share/elm/core",
 )
 
 pkg_tar(
@@ -52,7 +57,8 @@ pkg_tar(
     name = "debian-data",
     extension = "tar.gz",
     deps = [
-        ":server_jar",
+        ":server_files",
+        ":core_files",
         ":client_binary",
         ":systemd_service",
     ],
@@ -65,8 +71,13 @@ pkg_deb(
     architecture = "arm64",
     maintainer = "Paweł Zuzelski <pawelz@execve.ch>",
     description = "Elm Spam Classification Server and Client",
-    depends = ["openjdk-25-jre-headless"],
+    depends = [
+        "python3",
+        "python3-venv",
+        "python3-pip",
+    ],
     data = ":debian-data",
     postinst = "postinst",
     prerm = "prerm",
 )
+

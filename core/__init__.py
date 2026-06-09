@@ -11,20 +11,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-load("@rules_java//java:defs.bzl", "java_test")
-
-java_test(
-    name = "email_parser_test",
-    srcs = glob(["*.java"]),
-    javacopts = ["--release", "25"],
-    test_class = "ch.execve.elm.ingest.EmailParserTest",
-    deps = [
-        "//java/ch/execve/elm/ingest:ingest_lib",
-        "//java/ch/execve/elm/core:core_lib",
-        "@maven//:junit_junit",
-        "@maven//:jakarta_mail_jakarta_mail_api",
-        "@maven//:org_eclipse_angus_angus_mail",
-        "@maven//:com_google_guava_guava",
-    ],
-)

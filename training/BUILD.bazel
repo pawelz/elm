@@ -35,3 +35,14 @@ sh_binary(
         "requirements.txt",
     ],
 )
+
+sh_binary(
+    name = "ingest",
+    srcs = ["run_python.sh"],
+    args = ["training/ingest.py"],
+    data = [
+        "ingest.py",
+        "requirements.txt",
+    ],
+)
+

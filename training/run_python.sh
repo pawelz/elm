@@ -58,11 +58,14 @@ if [ "$BIN_NAME" = "train" ]; then
   SCRIPT_REL_PATH="training/train.py"
 elif [ "$BIN_NAME" = "export" ]; then
   SCRIPT_REL_PATH="training/export_onnx.py"
+elif [ "$BIN_NAME" = "ingest" ]; then
+  SCRIPT_REL_PATH="training/ingest.py"
 else
   # Fallback if run directly as run_python.sh
   SCRIPT_REL_PATH="$1"
   shift
 fi
 
+export PYTHONPATH="$WORKSPACE_ROOT:$PYTHONPATH"
 cd "$WORKSPACE_ROOT"
 python3 "$SCRIPT_REL_PATH" "$@"

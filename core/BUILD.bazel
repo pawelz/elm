@@ -12,23 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@rules_java//java:defs.bzl", "java_binary", "java_library")
+package(default_visibility = ["//visibility:public"])
 
-java_library(
-    name = "serving_lib",
-    srcs = glob(["*.java"]),
-    javacopts = ["--release", "25"],
-    deps = [
-        "//java/ch/execve/elm/core:core_lib",
-        "@maven//:jakarta_mail_jakarta_mail_api",
-        "@maven//:org_eclipse_angus_angus_mail",
-        "@maven//:info_picocli_picocli",
-    ],
-)
-
-java_binary(
-    name = "serving_server",
-    main_class = "ch.execve.elm.serving.ElmServer",
-    runtime_deps = [":serving_lib"],
-    visibility = ["//visibility:public"],
-)
+exports_files([
+    "__init__.py",
+    "email_parser.py",
+])

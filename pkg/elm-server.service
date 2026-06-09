@@ -6,7 +6,7 @@ After=network.target
 Type=simple
 User=mail
 Group=mail
-ExecStart=/usr/bin/java -jar /usr/share/elm/elm-server.jar --socket /run/elm/elm.sock
+ExecStart=/usr/share/elm/.venv/bin/python /usr/share/elm/server.py --socket /run/elm/elm.sock --onnx-path /usr/share/elm/model/model_quantized.onnx --classifier-path /usr/share/elm/model/spam_classifier.joblib
 Restart=always
 RestartSec=5
 
