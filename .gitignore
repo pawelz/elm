@@ -24,3 +24,6 @@ model/
 .venv/
 __pycache__/
 *.pyc
+
+# antigravity shenanigans
+scratch/
