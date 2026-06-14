@@ -14,7 +14,22 @@
 
 package(default_visibility = ["//visibility:public"])
 
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
 exports_files([
     "__init__.py",
     "email_parser.py",
+    "email_parser_test.py",
+    "email_parser_test.sh",
 ])
+
+sh_test(
+    name = "email_parser_test",
+    srcs = ["email_parser_test.sh"],
+    data = [
+        "email_parser.py",
+        "email_parser_test.py",
+    ],
+    tags = ["local"],
+)
+

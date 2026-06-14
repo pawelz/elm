@@ -196,6 +196,69 @@ def extract_body(part) -> str:
         
     return None
 
+import email.utils
+
+CONSUMER_DOMAINS = {
+    "gmail.com",
+    "outlook.com",
+    "hotmail.com",
+    "yahoo.com",
+    "yahoo.fr",
+    "yandex.ru",
+    "icloud.com",
+    "me.com",
+    "mac.com",
+    "protonmail.com",
+    "proton.me",
+    "pm.me",
+    "protonmail.ch",
+    "zoho.com",
+    "aol.com",
+    "gmx.com",
+    "gmx.de",
+    "mail.com",
+    "fastmail.com",
+    "tutanota.com",
+}
+
+def get_email_domain(header_value: str) -> str:
+    """Extracts the domain portion of the first email address found in a header."""
+    if not header_value:
+        return ""
+    try:
+        _, addr = email.utils.parseaddr(header_value)
+        if addr and "@" in addr:
+            return addr.split("@")[-1].strip().lower()
+    except Exception:
+        pass
+    return ""
+
+def has_reply_to_mismatch(msg) -> float:
+    """
+    Returns 1.0 if the From domain is a custom/private domain AND
+    the Reply-To domain is a large consumer email service (and they do not match).
+    Otherwise, returns 0.0.
+    """
+    from_raw = msg.get("From", "")
+    reply_to_raw = msg.get("Reply-To", "")
+    
+    if not from_raw or not reply_to_raw:
+        return 0.0
+        
+    from_domain = get_email_domain(from_raw)
+    reply_to_domain = get_email_domain(reply_to_raw)
+    
+    if not from_domain or not reply_to_domain:
+        return 0.0
+        
+    if from_domain == reply_to_domain:
+        return 0.0
+        
+    if from_domain not in CONSUMER_DOMAINS and reply_to_domain in CONSUMER_DOMAINS:
+        return 1.0
+        
+    return 0.0
+
 def parse(raw_email_bytes: bytes, label: int = 0) -> dict:
     """Parses raw email bytes into a structured dictionary equivalent to EmailRecord."""
     msg = email.message_from_bytes(raw_email_bytes)
@@ -209,9 +272,12 @@ def parse(raw_email_bytes: bytes, label: int = 0) -> dict:
     else:
         body = strip_urls_to_domain(body.strip())
         
+    mismatch_val = has_reply_to_mismatch(msg)
+    
     return {
         "subject": subject,
         "body": body,
-        "metadata_features": [],
+        "metadata_features": [mismatch_val],
         "label": label
     }
+

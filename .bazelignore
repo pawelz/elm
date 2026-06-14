@@ -1,0 +1,5 @@
+.venv
+bazel-bin
+bazel-elm
+bazel-out
+bazel-testlogs

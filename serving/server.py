@@ -108,9 +108,18 @@ def handle_client(client_sock, session, tokenizer, classifier, metadata_dim):
         outputs = session.run(["embeddings"], onnx_inputs)
         text_embedding = outputs[0]  # Shape: [1, embedding_dim]
         
-        # 5. Synthesize joint feature vector (metadata elements default to 0.0)
+        # 5. Synthesize joint feature vector using parsed record metadata
         if metadata_dim > 0:
-            metadata_features = np.zeros((1, metadata_dim))
+            raw_metadata = record.get("metadata_features", [])
+            numeric_features = [float(x) for x in raw_metadata if x is not None]
+            
+            # Standardize length to match metadata_dim (M)
+            if len(numeric_features) < metadata_dim:
+                numeric_features = numeric_features + [0.0] * (metadata_dim - len(numeric_features))
+            elif len(numeric_features) > metadata_dim:
+                numeric_features = numeric_features[:metadata_dim]
+                
+            metadata_features = np.array([numeric_features])
             final_features = np.hstack((text_embedding, metadata_features))
         else:
             final_features = text_embedding
