@@ -118,7 +118,6 @@ int main(int argc, char **argv) {
         if (filter_mode) {
             printf("X-Spam-Status: Error, score=0.0000, threshold=%.4f, error=\"socket error: %s\"\n", threshold, strerror(errno));
             printf("X-Spam-Score: 0.0000\n");
-            printf("X-Spam-Threshold: %.4f\n", threshold);
             fwrite(email_buffer, 1, email_buffer_size, stdout);
             free(email_buffer);
             return 0;
@@ -138,7 +137,6 @@ int main(int argc, char **argv) {
         if (filter_mode) {
             printf("X-Spam-Status: Error, score=0.0000, threshold=%.4f, error=\"connect error: %s\"\n", threshold, strerror(errno));
             printf("X-Spam-Score: 0.0000\n");
-            printf("X-Spam-Threshold: %.4f\n", threshold);
             fwrite(email_buffer, 1, email_buffer_size, stdout);
             close(sockfd);
             free(email_buffer);
@@ -168,7 +166,6 @@ int main(int argc, char **argv) {
         if (filter_mode) {
             printf("X-Spam-Status: Error, score=0.0000, threshold=%.4f, error=\"send error: %s\"\n", threshold, strerror(errno));
             printf("X-Spam-Score: 0.0000\n");
-            printf("X-Spam-Threshold: %.4f\n", threshold);
             fwrite(email_buffer, 1, email_buffer_size, stdout);
             close(sockfd);
             free(email_buffer);
@@ -191,7 +188,6 @@ int main(int argc, char **argv) {
         if (filter_mode) {
             printf("X-Spam-Status: Error, score=0.0000, threshold=%.4f, error=\"recv error: %s\"\n", threshold, strerror(errno));
             printf("X-Spam-Score: 0.0000\n");
-            printf("X-Spam-Threshold: %.4f\n", threshold);
             fwrite(email_buffer, 1, email_buffer_size, stdout);
         } else {
             perror("recv error");
@@ -212,7 +208,6 @@ int main(int argc, char **argv) {
             if (filter_mode) {
                 printf("X-Spam-Status: Error, score=0.0000, threshold=%.4f, error=\"invalid score: %s\"\n", threshold, response_buffer);
                 printf("X-Spam-Score: 0.0000\n");
-                printf("X-Spam-Threshold: %.4f\n", threshold);
                 fwrite(email_buffer, 1, email_buffer_size, stdout);
             } else {
                 fprintf(stderr, "Invalid score received from server: %s\n", response_buffer);
@@ -225,7 +220,6 @@ int main(int argc, char **argv) {
         if (filter_mode) {
             printf("X-Spam-Status: %s, score=%.4f, threshold=%.4f\n", (score >= threshold) ? "Yes" : "No", score, threshold);
             printf("X-Spam-Score: %.4f\n", score);
-            printf("X-Spam-Threshold: %.4f\n", threshold);
             fwrite(email_buffer, 1, email_buffer_size, stdout);
         } else {
             // Determine spam or ham based on user threshold
@@ -258,7 +252,6 @@ int main(int argc, char **argv) {
         if (filter_mode) {
             printf("X-Spam-Status: Error, score=0.0000, threshold=%.4f, error=\"empty response\"\n", threshold);
             printf("X-Spam-Score: 0.0000\n");
-            printf("X-Spam-Threshold: %.4f\n", threshold);
             fwrite(email_buffer, 1, email_buffer_size, stdout);
         } else {
             fprintf(stderr, "Empty response received from server.\n");
