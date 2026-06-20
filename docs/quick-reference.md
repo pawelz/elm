@@ -11,10 +11,10 @@ This reference guide provides a concise, step-by-step walkthrough of how to inge
 ---
 
 ## Step 1: Fetch Raw Email Data
-Use the `ingest/fetch.sh` utility to copy, filter (grabbing only `new` and `cur` mail files), and flatten email datasets from a remote mail server via `rsync`.
+Use the `training/fetch.sh` utility to copy, filter (grabbing only `new` and `cur` mail files), and flatten email datasets from a remote mail server via `rsync`.
 
 ```bash
-./ingest/fetch.sh \
+./training/fetch.sh \
   --remote user@your-mail-server.com:/home/user/Maildir \
   --good .Archive,.Inbox \
   --bad .Spam,.Junk
