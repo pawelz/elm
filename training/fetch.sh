@@ -16,99 +16,64 @@
 # Exit immediately if a command exits with a non-zero status
 set -e
 
-# Help / Usage message
-show_help() {
-    echo "Usage: $0 --good <good_maildirs> --bad <bad_maildirs> --remote <remote_path>"
-    echo ""
-    echo "Flags:"
-    echo "  --good     Comma-separated list of good Maildir directories relative to Maildir/"
-    echo "  --bad      Comma-separated list of bad Maildir directories relative to Maildir/"
-    echo "  --remote   Remote path in format username@host:path_to_maildir_base"
-    echo "  -h, --help Show this help message"
-}
+# Find the script's directory and workspace root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORKSPACE_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-GOOD_LIST=""
-BAD_LIST=""
-REMOTE=""
-
-# Parse command line arguments
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        --good)
-            GOOD_LIST="$2"
-            shift 2
-            ;;
-        --bad)
-            BAD_LIST="$2"
-            shift 2
-            ;;
-        --remote)
-            REMOTE="$2"
-            shift 2
-            ;;
-        -h|--help)
-            show_help
-            exit 0
-            ;;
-        *)
-            echo "Error: Unknown argument $1" >&2
-            show_help
-            exit 1
-            ;;
-        esac
-done
+# Load the config file
+CONFIG_FILE="${SCRIPT_DIR}/fetch.cfg"
+if [ -f "$CONFIG_FILE" ]; then
+    source "$CONFIG_FILE"
+else
+    echo "Error: Config file not found at $CONFIG_FILE" >&2
+    echo "Please copy training/fetch.cfg.example to training/fetch.cfg and configure it." >&2
+    exit 1
+fi
 
 # Validate inputs
-if [ -z "$GOOD_LIST" ] && [ -z "$BAD_LIST" ]; then
-    echo "Error: At least one of --good or --bad must be specified." >&2
+if [ -z "$REMOTE_HOST" ]; then
+    echo "Error: REMOTE_HOST is not specified in training/fetch.cfg" >&2
     exit 1
 fi
 
-if [ -z "$REMOTE" ]; then
-    echo "Error: --remote must be specified." >&2
+if [ -z "$GOOD_MAILDIRS" ] && [ -z "$BAD_MAILDIRS" ]; then
+    echo "Error: At least one of GOOD_MAILDIRS or BAD_MAILDIRS must be specified in training/fetch.cfg" >&2
     exit 1
 fi
 
-# 1. Determine local target directory name with disambiguation character
-CHARACTERS="0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-DATE=$(date +"%Y%m%d")
-SELECTED_CHAR=""
-
-for (( i=0; i<${#CHARACTERS}; i++ )); do
-    CHAR="${CHARACTERS:$i:1}"
-    DIR_NAME="data/${DATE}-${CHAR}"
-    if [ ! -d "$DIR_NAME" ]; then
-        SELECTED_CHAR="$CHAR"
-        break
-    fi
-done
-
-if [ -z "$SELECTED_CHAR" ]; then
-    echo "Error: Ran out of disambiguation characters (0-9, a-z, A-Z) for date ${DATE}." >&2
-    exit 1
+if [ -z "$OUTPUT_DIR" ]; then
+    OUTPUT_DIR="data"
 fi
 
-TARGET_DIR="data/${DATE}-${SELECTED_CHAR}"
+# Resolve TARGET_DIR relative to workspace root if it's not absolute
+if [[ "$OUTPUT_DIR" = /* ]]; then
+    TARGET_DIR="$OUTPUT_DIR"
+else
+    TARGET_DIR="${WORKSPACE_ROOT}/${OUTPUT_DIR}"
+fi
 
-# 2. Create target subdirectories
+echo "Syncing emails to destination: ${TARGET_DIR}"
+
+# Create target subdirectories, clearing them first to ensure a clean sync
+rm -rf "$TARGET_DIR/good" "$TARGET_DIR/bad"
 mkdir -p "$TARGET_DIR/good"
 mkdir -p "$TARGET_DIR/bad"
 
-# 3. Create inputs.txt debug file
+# Create inputs.txt debug file
 cat <<EOF > "$TARGET_DIR/inputs.txt"
-good: $GOOD_LIST
-bad: $BAD_LIST
+good: $GOOD_MAILDIRS
+bad: $BAD_MAILDIRS
 EOF
 
 # Create a temporary directory for flattening structures
 TEMP_DIR=$(mktemp -d "${TARGET_DIR}/.tmp.XXXXXX")
 
-# 4. Copy good Maildirs (only cur and new subdirectories)
-IFS=',' read -ra GOOD_DIRS <<< "$GOOD_LIST"
+# Copy good Maildirs (only cur and new subdirectories)
+IFS=',' read -ra GOOD_DIRS <<< "$GOOD_MAILDIRS"
 for dir in "${GOOD_DIRS[@]}"; do
     if [ -n "$dir" ]; then
         echo "good:$dir"
-        rsync -rt --quiet --include="*/" --include="cur/**" --include="new/**" --exclude="*" "${REMOTE}/${dir}/" "$TEMP_DIR/"
+        rsync -rt --quiet --include="*/" --include="cur/**" --include="new/**" --exclude="*" "${REMOTE_HOST}/${dir}/" "$TEMP_DIR/"
     fi
 done
 
@@ -118,12 +83,12 @@ if [ -d "$TEMP_DIR" ] && [ "$(ls -A "$TEMP_DIR")" ]; then
     rm -rf "$TEMP_DIR"/*
 fi
 
-# 5. Copy bad Maildirs (only cur and new subdirectories)
-IFS=',' read -ra BAD_DIRS <<< "$BAD_LIST"
+# Copy bad Maildirs (only cur and new subdirectories)
+IFS=',' read -ra BAD_DIRS <<< "$BAD_MAILDIRS"
 for dir in "${BAD_DIRS[@]}"; do
     if [ -n "$dir" ]; then
         echo "bad:$dir"
-        rsync -rt --quiet --include="*/" --include="cur/**" --include="new/**" --exclude="*" "${REMOTE}/${dir}/" "$TEMP_DIR/"
+        rsync -rt --quiet --include="*/" --include="cur/**" --include="new/**" --exclude="*" "${REMOTE_HOST}/${dir}/" "$TEMP_DIR/"
     fi
 done
 
@@ -135,4 +100,5 @@ fi
 # Clean up temp directory
 rm -rf "$TEMP_DIR"
 
+echo "Sync completed successfully!"
 exit 0

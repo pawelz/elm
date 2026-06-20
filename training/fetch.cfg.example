@@ -1,0 +1,16 @@
+# Configuration for Elm email ingestion
+# Copy this file to training/fetch.cfg and configure it for your setup.
+# Note: training/fetch.cfg is gitignored.
+
+# Local directory where fetched emails will be stored (relative to project root, usually "data")
+OUTPUT_DIR="data"
+
+# Remote mail server connection string in rsync/ssh format
+# Format: username@host:path_to_maildir_base
+REMOTE_HOST="user@your-mail-server.com:/home/user/Maildir"
+
+# Comma-separated list of good Maildir folders (relative to REMOTE_HOST)
+GOOD_MAILDIRS=".Archive,.Inbox"
+
+# Comma-separated list of bad Maildir folders (relative to REMOTE_HOST)
+BAD_MAILDIRS=".Spam,.Junk"

@@ -10,68 +10,42 @@ This reference guide provides a concise, step-by-step walkthrough of how to inge
 
 ---
 
-## Step 1: Fetch Raw Email Data
-Use the `training/fetch.sh` utility to copy, filter (grabbing only `new` and `cur` mail files), and flatten email datasets from a remote mail server via `rsync`.
+## Step 1: Configure & Fetch Raw Email Data
+The email ingestion process is configured via a gitignored configuration file `training/fetch.cfg`. 
 
-```bash
-./training/fetch.sh \
-  --remote user@your-mail-server.com:/home/user/Maildir \
-  --good .Archive,.Inbox \
-  --bad .Spam,.Junk
-```
+1. Copy the example configuration template:
+   ```bash
+   cp training/fetch.cfg.example training/fetch.cfg
+   ```
+2. Open `training/fetch.cfg` in your editor and configure your remote server details and the target good/bad Maildir directories.
+3. Run the fetch script:
+   ```bash
+   ./training/fetch.sh
+   ```
 
-This creates a flattened dataset folder at `data/YYYYMMDD-X/` (where `X` is a disambiguation character), creating two subdirectories:
-* `data/YYYYMMDD-X/good/` (non-spam emails)
-* `data/YYYYMMDD-X/bad/` (spam emails)
+This will connect to your remote mail server via `rsync` and synchronize your emails directly to:
+* `data/good/` (clean non-spam emails)
+* `data/bad/` (spam emails)
 
----
-
-## Step 2: Ingest and Parse Emails
-Convert the raw Maildir files into a single, standardized, JSONL training dataset. This step decodes alternative text encodings, strips HTML markup while preserving layout, extracts URLs, and extracts core metadata:
-
-```bash
-# 1. Build the ingestion target
-bazel build //training:ingest
-
-# 2. Parse the emails
-./bazel-bin/training/ingest \
-  --good data/YYYYMMDD-X/good \
-  --bad data/YYYYMMDD-X/bad \
-  --output training.jsonl
-```
+The script automatically flattens, filters, and clears out old datasets to guarantee clean, up-to-date inputs.
 
 ---
 
-## Step 3: Train the Classifier
-Extract multilingual text embeddings using a sentence-transformer backbone and train a Scikit-Learn Logistic Regression classification head on the combined text embeddings and tabular email metadata:
+## Step 2: Build & Train the Model (Automated with Bazel)
+The entire training pipeline (ingesting raw emails, extracting multilingual sentence embeddings, training a Scikit-Learn Logistic Regression classification head, tracing/exporting the PyTorch model to ONNX, and compiling/quantizing to INT8) is fully automated with a single Bazel command:
 
 ```bash
-# 1. Build the training target
-bazel build //training:train
-
-# 2. Execute training
-./bazel-bin/training/train \
-  --data-path training.jsonl \
-  --model-dir model
+bazel build model:elm
 ```
 
-This generates `spam_classifier.joblib` (the trained head) and `metadata_config.json` (pipeline dimension details) in your local `model/` folder.
+This runs the end-to-end ML orchestration using your local Python virtual environment (`.venv`). It automatically produces all 5 required model and tokenizer artifacts in the Bazel output bin directory:
+* `bazel-bin/model/model_quantized.onnx`
+* `bazel-bin/model/tokenizer.json`
+* `bazel-bin/model/tokenizer_config.json`
+* `bazel-bin/model/spam_classifier.joblib`
+* `bazel-bin/model/metadata_config.json`
 
----
-
-## Step 4: Export & Quantize the ONNX Model
-Trace the SentenceTransformer backbone model, compile it to an ONNX graph, apply Post-Training INT8 Dynamic Quantization (reducing the model size by over 70% to ~119MB), copy the tokenizer configurations, and automatically apply runtime compatibility patches:
-
-```bash
-# 1. Build the export target
-bazel build //training:export
-
-# 2. Export and Quantize
-./bazel-bin/training/export \
-  --output-dir model
-```
-
-This generates `model_quantized.onnx`, `tokenizer.json`, and `tokenizer_config.json` (specifically patched for cross-platform unpickling safety) in your local `model/` folder.
+Because the dataset files in `data/` are exposed to Bazel via a `BUILD.bazel` file, Bazel tracks their contents and will automatically avoid rebuilding if neither your training scripts nor your raw emails have changed.
 
 ---
 

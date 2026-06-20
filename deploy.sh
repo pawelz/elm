@@ -39,7 +39,7 @@ if [ -z "$HOST" ]; then
 fi
 
 # Define local model dir and files
-LOCAL_MODEL_DIR="model"
+LOCAL_MODEL_DIR="bazel-bin/model"
 MODEL_FILES=(
     "metadata_config.json"
     "model_quantized.onnx"
