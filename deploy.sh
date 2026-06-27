@@ -64,7 +64,7 @@ echo ""
 echo "------------------------------------------------------------"
 echo ">>> STEP 2/11: Initializing remote repository on target..."
 echo "------------------------------------------------------------"
-ssh "$HOST" "echo 'Creating/verifying remote directory ~/elm...' && mkdir -p elm && cd elm && if [ ! -d .git ]; then echo 'Initializing git repository...'; git init; else echo 'Git repository already initialized.'; fi"
+ssh "$HOST" "echo 'Creating/verifying remote directory ~/elm...' && mkdir -p elm && cd elm && if [ ! -d .git ]; then echo 'Initializing git repository...'; git init; else echo 'Git repository already initialized.'; fi && git config receive.denyCurrentBranch ignore"
 
 # 3. Use Git to force-push the local HEAD to the remote deployment branch 'deploy'
 echo ""

@@ -31,3 +31,6 @@ training/fetch.cfg
 
 # antigravity shenanigans
 scratch/
+
+# Private developer instructions
+README-prv.md

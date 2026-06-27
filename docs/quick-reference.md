@@ -45,56 +45,55 @@ This runs the end-to-end ML orchestration using your local Python virtual enviro
 * `bazel-bin/model/spam_classifier.joblib`
 * `bazel-bin/model/metadata_config.json`
 
-Because the dataset files in `data/` are exposed to Bazel via a `BUILD.bazel` file, Bazel tracks their contents and will automatically avoid rebuilding if neither your training scripts nor your raw emails have changed.
+> [!NOTE]
+> **Email Dataset Tracking Disclaimer**: Because Maildir format filenames contain colons (`:`) and commas (`,`), which are incompatible with Bazel's target/label character restrictions, the raw emails in `data/good/` and `data/bad/` are accessed directly by the local genrule during the build phase instead of being explicitly listed in `srcs`.
+>
+> Consequently, Bazel **does not track individual raw email file changes**. It considers the build fresh if your training source files and configurations (e.g. `training/train.py`, etc.) are unchanged.
+>
+> To **force-rebuild/retrain** the model after fetching fresh raw emails, you can either:
+> 1. Run `touch training/train.py` locally before running the build.
+> 2. Pass a dynamic environment variable to Bazel to bypass the action cache:
+>    ```bash
+>    bazel build model:elm --action_env=FORCE_REBUILD=$(date +%s)
+>    ```
 
 ---
 
-## Step 5: Build the Debian Package
-Compile the native C client, package the Python server script, systemd configuration, and post-installation setup scripts into a ready-to-deploy `.deb` package. The build system is fully hermetic and does not bundle the heavy, non-hermetic machine learning models:
+## Step 3: Deploy to Production (Fully Automated)
 
-```bash
-bazel build //pkg:elm_deb
-```
-This outputs the cross-compiled package at:
-`bazel-bin/pkg/elm-server_1.0.0_arm64.deb`
+The entire deployment process—pushing your latest code, natively building the lightweight Debian package on the target machine, copying the heavy machine learning model files, and performing a zero-downtime service restart—is fully automated via the `deploy.sh` script.
 
----
-
-## Step 6: Deploy to Production
-
-Deploying is a two-step process: installing the lightweight daemon/client package and deploying the heavy, separately-supplied model files.
-
-### 1. Install/Upgrade the Server Package
-Copy the `.deb` package to your production host and install it:
-```bash
-scp bazel-bin/pkg/elm-server_1.0.0_arm64.deb user@production-host:/tmp/
-ssh user@production-host "sudo dpkg -i /tmp/elm-server_1.0.0_arm64.deb"
-```
-The package automatically:
-* Registers a dedicated local Python virtual environment under `/usr/share/elm/.venv`.
-* Installs all production serving dependencies (ONNX Runtime, Transformers, joblib, Scikit-Learn, bs4) securely.
-* Creates the systemd service file (`elm-server.service`).
-* Sets ownership permissions to `mail:mail`.
-
-### 2. Deploy Model Files
-Upload the 5 model assets from your local `model/` folder to the `/usr/share/elm/model/` directory on the target host using the automated `deploy.sh` script:
+To deploy the entire stack to your production server:
 
 ```bash
 ./deploy.sh --host user@production-host
 ```
-Select `y` when prompted to restart the `elm-server` systemd service so that the daemon starts up and begins serving.
+
+### What `deploy.sh` does automatically:
+1. **Pre-Flight Checks**: Verifies that your local Bazel-compiled ML model files exist under `bazel-bin/model/`.
+2. **Git Auto-Initialization**: Ensures the remote directory exists, is initialized as a Git repository on-the-fly (`git init`) if needed, and is configured (`receive.denyCurrentBranch = ignore`) to safely accept pushes to its currently checked-out branch.
+3. **Smart Git Sync**: Force-pushes the local `HEAD` commit directly to a dedicated remote `deploy` branch (`${HOST}:elm`).
+4. **Native Remote Compilation**: Connects via SSH to perform a hard reset to the `deploy` branch and compile the Debian package (`pkg:elm_deb`) natively on the target host. It automatically restricts CPU and RAM resources (`--local_ram_resources=1024 --jobs=2`) to run smoothly even on low-end target hardware (like a Raspberry Pi 4) without causing disk swap thrashing.
+5. **Model Staging**: Securely uploads your local model and tokenizer files via SCP to a temporary directory on the host.
+6. **Just-In-Time Exim4 Stopping**: Stops the remote `exim4` service right before installing any files to avoid incoming email classification race conditions.
+7. **Package Installation**: Installs the freshly built native Debian package securely (`sudo dpkg -i bazel-bin/pkg/elm-server_*.deb`).
+8. **Model Deployment**: Moves the staging model files directly into `/usr/share/elm/model/` with correct permissions and ownership.
+9. **Zero-Downtime Restarts**: Restarts the `elm-server` daemon and starts `exim4` back up immediately, reducing the mail delivery downtime window to **just 2–3 seconds**.
 
 ---
 
-## Verifying the Production Server
+## Step 4: Verifying the Production Server
 
 To verify that the server is successfully listening on the socket:
 ```bash
 ssh user@production-host "sudo systemctl status elm-server"
 ```
 
-To test the client-server pipeline manually on the target machine:
+To test the client-server pipeline manually on the target machine, pipe any raw `.eml` file into the client:
 ```bash
 ssh user@production-host "elm-client --socket /run/elm/elm.sock --threshold 0.50 --filter < /path/to/test/email.eml"
 ```
-The client will output the classification headers followed by the unmodified email content.
+
+The client will process the message and output the updated classification headers (`X-Spam-Status`, `X-Spam-Score`) followed by the unmodified email content.
+
+
