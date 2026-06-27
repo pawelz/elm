@@ -100,5 +100,27 @@ fi
 # Clean up temp directory
 rm -rf "$TEMP_DIR"
 
+# Generate manifest file for Bazel change detection.
+# This works around Bazel's inability to handle Maildir filenames containing colons ':' in srcs/globs.
+# Since the manifest file changes when files are added, removed, or modified, Bazel can track it.
+echo "Generating manifest for Bazel..."
+if command -v python3 >/dev/null 2>&1; then
+    python3 -c '
+import os
+target_dir = "'"$TARGET_DIR"'"
+for d in ["good", "bad"]:
+    path = os.path.join(target_dir, d)
+    if os.path.isdir(path):
+        for f in sorted(os.listdir(path)):
+            fp = os.path.join(path, f)
+            if os.path.isfile(fp):
+                stat = os.stat(fp)
+                print(f"{d}/{f} {stat.st_size} {stat.st_mtime:.0f}")
+' > "$TARGET_DIR/manifest.txt"
+else
+    # Fallback to simple find list if python3 is not available
+    (cd "$TARGET_DIR" && find good bad -type f | sort) > "$TARGET_DIR/manifest.txt"
+fi
+
 echo "Sync completed successfully!"
 exit 0

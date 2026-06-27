@@ -20,5 +20,5 @@ package(default_visibility = ["//visibility:public"])
 # instead of being globbed into srcs.
 filegroup(
     name = "data_dir",
-    srcs = [],
+    srcs = ["manifest.txt"],
 )
